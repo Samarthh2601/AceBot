@@ -13,20 +13,6 @@ from .colours import Colour
 from .dtclasses import BookmarkContent, Record
 
 
-async def process_anime_command(inter: discord.Interaction, client: ClientSession, endpoint: str, text: str, member: discord.Member = None) -> None:
-    await inter.response.defer(ephemeral=True, thinking=True)
-    if member is not None and inter.user.id == member.id:
-        return await inter.edit_original_response(content="Too lonely, huh?")
-
-    response = (await client.get(f"https://api.waifu.pics/sfw/{endpoint}"))
-    if response.status != 200:
-        return await inter.edit_original_response(content="Could not find an emote...")
-    response = await response.json()
-    embed = discord.Embed(description=text, colour=discord.Colour.random()).set_image(
-        url=response.get("url"))
-    await inter.edit_original_response(embed=embed)
-
-
 def get_id(id_or_link: str | int, /) -> int | None:
     if len(id_or_link) in (19, 20,) and id_or_link.isdigit():
         message_id = id_or_link
