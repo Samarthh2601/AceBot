@@ -42,7 +42,7 @@ class Embed:
     embed_content: str = None
 
 @dataclass
-class BookmarkContent(Embed):
+class MessageContent(Embed):
     content: str = None
     file_url: str = None
 
@@ -67,3 +67,5 @@ class Record:
     user_id: int
     guild_id: int
     channel_id: int=None
+    dm_id: int=None
+    dm_channel_id: int=None

@@ -3,14 +3,13 @@ from datetime import datetime, timedelta
 from typing import Any, List
 
 import discord
-from aiohttp import ClientSession
 from discord import app_commands
 from discord.colour import Colour
 from discord.types.embed import EmbedType
 from typing_extensions import Self
 
 from .colours import Colour
-from .dtclasses import BookmarkContent, Record
+from .dtclasses import MessageContent
 
 
 def get_id(id_or_link: str | int, /) -> int | None:
@@ -24,15 +23,8 @@ def get_id(id_or_link: str | int, /) -> int | None:
 
     return int(message_id)
 
-
-def get_guild_rank(guild_data: List, member: discord.Member) -> None | int:
-    s = sorted(guild_data, key=lambda element: element[2])
-    form = list(reversed([record[0] for record in s]))
-    return None if form is None else (form.index(member.id) + 1)
-
-
-async def get_bookmark_content(message: discord.Message) -> BookmarkContent:
-    ret = BookmarkContent()
+async def get_message_assets(message: discord.Message) -> MessageContent:
+    ret = MessageContent()
     if message.content:
         ret.content = message.content
 
@@ -49,6 +41,18 @@ async def get_bookmark_content(message: discord.Message) -> BookmarkContent:
 
     return ret
 
+def create_message_asset_embed(message: discord.Message):
+    embed = Embed()
+    if message.content:
+        embed.description = f"**Message Content**: {message.content}" 
+    embed.add_field("Attachment", "True" if message.attachments else "False") 
+    embed.add_field("Embed content", message.embeds[0].description) if message.embeds else ...
+    embed.add_field("Server", message.guild.name)
+    embed.add_field("Channel", message.channel)
+    embed.add_field("Message author", message.author)
+    embed.add_field("Message", f"[Click Here]({message.jump_url})")
+    embed.set_image(message.attachments[0].url) if message.attachments else ...
+    return embed
 
 def generate_timestamp(dt: datetime = None, *, style: str = "f", weeks: int = 0, days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0, milliseconds: int = 0) -> str:
     if dt is None:
@@ -72,11 +76,6 @@ def get_all_extension_choices() -> List:
     f_path = format_path(Info.EXTENSIONS_PATH)
 
     return [app_commands.Choice(name=file[:-3].capitalize(), value=f"{f_path}{file[:-3]}") for file in os.listdir(Info.EXTENSIONS_PATH) if file.endswith(".py") and not file.startswith("_")]
-
-def get_current_tracking_ftstring(records: list[Record] | Record):
-    if isinstance(records, list):
-        return "\n- ".join([f"https://discord.com/channels/{message.guild_id}/{message.channel_id}/{message.message_id} ({message.message_id})" for message in records])
-    return f"https://discord.com/channels/{records.guild_id}/{records.channel_id}/{records.message_id}"
 
 
 class Embed(discord.Embed):

@@ -261,32 +261,32 @@ class MessageDB(Base):
     conn: aiosqlite.Connection
 
     def __init__(self) -> None:
-        super().__init__("CREATE TABLE IF NOT EXISTS messages(user_id INTEGER, channel_id INTEGER, message_id INTEGER, guild_id INTEGER)")
+        super().__init__("CREATE TABLE IF NOT EXISTS messages(user_id INTEGER, channel_id INTEGER, message_id INTEGER, guild_id INTEGER, dm_id INTEGER, dm_channel_id INTEGER)")
 
 
     async def read_user_message(self, user_id: int, message_id: int) -> None | Record:
         cursor = await self.conn.cursor()
         record = await (await cursor.execute("SELECT * FROM messages WHERE user_id = ? AND message_id = ?", (user_id, message_id,))).fetchone()
         if not record: return None
-        return Record(record[2], record[0], record[3], record[1])
+        return Record(record[2], record[0], record[3], record[1], record[4], record[5])
 
     async def read_message(self, message_id: int) -> None | List[Record]:
         cursor = await self.conn.cursor()
         records = await (await cursor.execute("SELECT * FROM messages WHERE message_id = ?", (message_id,))).fetchall()
         if not records: return None
-        return [Record(record[2], record[0], record[3], record[1]) for record in records]
+        return [Record(record[2], record[0], record[3], record[1], record[4], record[5]) for record in records]
 
     async def read_user(self, user_id: int) -> None | List[Record]:
         cursor = await self.conn.cursor()
         record = await (await cursor.execute("SELECT * FROM messages WHERE user_id = ?", (user_id,))).fetchall()
         if not record: return None
-        return [Record(record[2], record[0], record[3], record[1]) for record in record]
+        return [Record(record[2], record[0], record[3], record[1], record[4], record[5]) for record in record]
 
-    async def create(self, user_id: int, channel_id: int, message_id: int, guild_id: int) -> bool | Record:
+    async def create(self, user_id: int, channel_id: int, message_id: int, guild_id: int, dm_id: int, dm_channel_id: int) -> bool | Record:
         cursor = await self.conn.cursor()
-        await cursor.execute("INSERT INTO messages(user_id, channel_id, message_id, guild_id) VALUES(?, ?, ?, ?)", (user_id, channel_id, message_id, guild_id,))
+        await cursor.execute("INSERT INTO messages(user_id, channel_id, message_id, guild_id, dm_id, dm_channel_id) VALUES(?, ?, ?, ?, ?, ?)", (user_id, channel_id, message_id, guild_id, dm_id, dm_channel_id,))
         await self.conn.commit()
-        return Record(message_id, user_id, guild_id, channel_id)
+        return Record(message_id, user_id, guild_id, channel_id, dm_id, dm_channel_id)
     
     async def remove(self, user_id: int, message_id: int) -> bool | Record:
         _check = await self.read_user_message(user_id, message_id)
@@ -295,7 +295,7 @@ class MessageDB(Base):
         cursor = await self.conn.cursor()
         await cursor.execute("DELETE FROM messages WHERE user_id = ? AND message_id = ?", (_check.user_id, _check.message_id,))
         await self.conn.commit()
-        return Record(_check.message_id, _check.user_id, _check.guild_id, _check.channel_id)
+        return Record(_check.message_id, _check.user_id, _check.guild_id, _check.channel_id, _check.dm_id, _check.dm_channel_id)
     
     async def remove_user(self, user_id: int) -> bool:
         _check = await self.read_user(user_id)
@@ -303,6 +303,15 @@ class MessageDB(Base):
             return False
         cursor = await self.conn.cursor()
         await cursor.execute("DELETE FROM messages WHERE user_id = ?", (user_id,))
+        await self.conn.commit()
+        return True
+    
+    async def remove_message(self, message_id: int) -> bool:
+        _check = await self.read_message(message_id)
+        if _check is None:
+            return False
+        cursor = await self.conn.cursor()
+        await cursor.execute("DELETE FROM messages WHERE message_id = ?", (message_id,))
         await self.conn.commit()
         return True
 

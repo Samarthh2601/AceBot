@@ -7,19 +7,24 @@ from discord.ext import commands
 
 from ..core import Ace
 from ..utils import (BookmarkView, Embed, Record, generate_timestamp,
-                     get_bookmark_content, get_id, get_current_tracking_ftstring)
+                     get_message_assets, get_id, create_message_asset_embed)
 
 
 class Messages(commands.GroupCog, name="message"):
     def __init__(self, bot: Ace) -> None:
         self.bot = bot
 
+    def get_current_tracking_ftstring(self, records: list[Record] | Record):
+        if isinstance(records, list):
+            return "\n- ".join([f"https://discord.com/channels/{message.guild_id}/{message.channel_id}/{message.message_id} ({message.message_id})" for message in records])
+        return f"https://discord.com/channels/{records.guild_id}/{records.channel_id}/{records.message_id}"
+
     @app_commands.command(name="bookmark", description="Bookmark a message!")
     async def bookmark(self, inter: discord.Interaction, id_or_link: str) -> None:
         await inter.response.defer()
         message_id = get_id(id_or_link)
         message = await inter.channel.fetch_message(message_id)
-        message_content = await get_bookmark_content(message)
+        message_content = await get_message_assets(message)
         embed = Embed()
         if message.content:
             embed.description = f"**Message Content**: {message_content.content}" 
@@ -69,13 +74,16 @@ class Messages(commands.GroupCog, name="message"):
         
         if (limit:=(await self.bot.db.messages.read_user(inter.user.id))):
             if len(limit) >= 3:
-                embed = Embed(title="Currently tracking messages!", description=get_current_tracking_ftstring(limit))
+                embed = Embed(title="Currently tracking messages!", description=self.get_current_tracking_ftstring(limit))
                 return await inter.edit_original_response(content="You are already tracking **3** messages! You can only track **3** messages at a time!", embed=embed)
 
-    
-        await self.bot.db.messages.create(inter.user.id, message_channel.id, message_id, message_channel.guild.id)
+        message = await message_channel.fetch_message(message_id)
 
-        await inter.edit_original_response(content=f"Now tracking [this]({get_current_tracking_ftstring(Record(message_id, inter.user.id, message_channel.guild.id, message_channel.id))}) message!")
+        await inter.edit_original_response(content=f"Now tracking [this]({self.get_current_tracking_ftstring(Record(message_id, inter.user.id, message_channel.guild.id, message_channel.id))}) message!")
+
+        embed = create_message_asset_embed(message)
+        m = await inter.user.send(embed=embed)
+        await self.bot.db.messages.create(inter.user.id, message_channel.id, message_id, message_channel.guild.id, m.id, m.channel.id)
 
     @app_commands.command(name="untrack", description="Untrack a message!")
     async def untrack(self, inter: discord.Interaction, id_or_link: str) -> discord.InteractionMessage | None:
@@ -87,7 +95,7 @@ class Messages(commands.GroupCog, name="message"):
         if (message:=await self.bot.db.messages.remove(inter.user.id, message_id)) is False:
             return await inter.edit_original_response(content="Could not find any tracked messages with that ID/link")
 
-        await inter.edit_original_response(content=f"Successfully untracked [this]({get_current_tracking_ftstring(Record(message_id, inter.user.id, message.guild_id, message.channel_id))}) message!")
+        await inter.edit_original_response(content=f"Successfully untracked [this]({self.get_current_tracking_ftstring(Record(message_id, inter.user.id, message.guild_id, message.channel_id))}) message!")
 
     @app_commands.command(name="untrack_all", description="Untrack all messages!")
     async def untrack_all(self, inter: discord.Interaction) -> discord.InteractionMessage | None:
@@ -104,7 +112,7 @@ class Messages(commands.GroupCog, name="message"):
         i = await self.bot.db.messages.read_user(inter.user.id)
         if i is None:
             return await inter.edit_original_response(content="You are not tracking any messages!")
-        embed = Embed(title="Currently tracking messages!", description=get_current_tracking_ftstring(i))
+        embed = Embed(title="Currently tracking messages!", description=self.get_current_tracking_ftstring(i))
         await inter.edit_original_response(embed=embed)
 
 async def setup(bot: Ace):
