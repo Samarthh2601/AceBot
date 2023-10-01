@@ -1,4 +1,3 @@
-import random
 from datetime import datetime
 
 import discord
@@ -7,17 +6,12 @@ from discord.ext import commands
 
 from ..core import Ace
 from ..utils import (BookmarkView, Embed, Record, generate_timestamp,
-                     get_message_assets, get_id, create_message_asset_embed)
+                     get_message_assets, get_id, get_current_tracking_ftstring)
 
 
 class Messages(commands.GroupCog, name="message"):
     def __init__(self, bot: Ace) -> None:
         self.bot = bot
-
-    def get_current_tracking_ftstring(self, records: list[Record] | Record):
-        if isinstance(records, list):
-            return "\n- ".join([f"https://discord.com/channels/{message.guild_id}/{message.channel_id}/{message.message_id} ({message.message_id})" for message in records])
-        return f"https://discord.com/channels/{records.guild_id}/{records.channel_id}/{records.message_id}"
 
     @app_commands.command(name="bookmark", description="Bookmark a message!")
     async def bookmark(self, inter: discord.Interaction, id_or_link: str) -> None:
@@ -41,26 +35,6 @@ class Messages(commands.GroupCog, name="message"):
         except discord.Forbidden:
             await inter.channel.send(f"{inter.user.mention}, Enable your DMs and click the **Copy** button!")
 
-    @app_commands.command(name="vent", description="Vent in the current server!")
-    async def vent(self, inter: discord.Interaction, text: str, name: str=None, avatar: discord.Attachment=None) -> discord.InteractionMessage | None:
-        await inter.response.defer(ephemeral=True, thinking=True)
-        if inter.guild is None:
-            return await inter.edit_original_response(content="Please use this command in a server!")  
-        channels = await self.bot.db.channels.create(inter.guild.id)
-        if channels.vent == 0:
-            return await inter.edit_original_response(content="A channel in the server has not been set yet!")
-
-        name = name or f"Anonymous[{random.randint(200, 300)}]"
-        _avatar = None
-
-        if avatar:
-            _avatar = await avatar.read()
-    
-        channel = await self.bot.features.getch_channel(channels.vent)
-        webhook = await channel.create_webhook(name=name, avatar=_avatar)        
-        embed = Embed(description=text)
-        await webhook.send(embed=embed)
-        await inter.edit_original_response(content=f"Successfully vented in {channel.mention}")
 
     @app_commands.command(name="track", description="Track a message!")
     async def track(self, inter: discord.Interaction, id_or_link: str, message_channel: discord.TextChannel) -> discord.InteractionMessage | None:
@@ -74,14 +48,24 @@ class Messages(commands.GroupCog, name="message"):
         
         if (limit:=(await self.bot.db.messages.read_user(inter.user.id))):
             if len(limit) >= 3:
-                embed = Embed(title="Currently tracking messages!", description=self.get_current_tracking_ftstring(limit))
+                embed = Embed(title="Currently tracking messages!", description=get_current_tracking_ftstring(limit, ft_string=True))
                 return await inter.edit_original_response(content="You are already tracking **3** messages! You can only track **3** messages at a time!", embed=embed)
 
         message = await message_channel.fetch_message(message_id)
 
-        await inter.edit_original_response(content=f"Now tracking [this]({self.get_current_tracking_ftstring(Record(message_id, inter.user.id, message_channel.guild.id, message_channel.id))}) message!")
+        await inter.edit_original_response(content=f"Now tracking [this]({get_current_tracking_ftstring(Record(message_id, inter.user.id, message_channel.guild.id, message_channel.id))}) message!")
 
-        embed = create_message_asset_embed(message)
+        embed = Embed()
+        if message.content:
+            embed.description = f"**Message Content**: {message.content}" 
+        embed.add_field("Attachment", "Yes" if message.attachments else "None") 
+        embed.add_field("Embed content", message.embeds[0].description) if message.embeds else ...
+        embed.add_field("Server", message.guild.name)
+        embed.add_field("Channel", message.channel)
+        embed.add_field("Message author", message.author)
+        embed.add_field("Message", f"[Click Here]({message.jump_url})")
+        embed.set_image(message.attachments[0].url) if message.attachments else ...
+        
         m = await inter.user.send(embed=embed)
         await self.bot.db.messages.create(inter.user.id, message_channel.id, message_id, message_channel.guild.id, m.id, m.channel.id)
 
@@ -95,7 +79,7 @@ class Messages(commands.GroupCog, name="message"):
         if (message:=await self.bot.db.messages.remove(inter.user.id, message_id)) is False:
             return await inter.edit_original_response(content="Could not find any tracked messages with that ID/link")
 
-        await inter.edit_original_response(content=f"Successfully untracked [this]({self.get_current_tracking_ftstring(Record(message_id, inter.user.id, message.guild_id, message.channel_id))}) message!")
+        await inter.edit_original_response(content=f"Successfully untracked [this]({get_current_tracking_ftstring(message)}) message!")
 
     @app_commands.command(name="untrack_all", description="Untrack all messages!")
     async def untrack_all(self, inter: discord.Interaction) -> discord.InteractionMessage | None:
@@ -112,7 +96,7 @@ class Messages(commands.GroupCog, name="message"):
         i = await self.bot.db.messages.read_user(inter.user.id)
         if i is None:
             return await inter.edit_original_response(content="You are not tracking any messages!")
-        embed = Embed(title="Currently tracking messages!", description=self.get_current_tracking_ftstring(i))
+        embed = Embed(title="Currently tracking messages!", description=get_current_tracking_ftstring(i, ft_string=True))
         await inter.edit_original_response(embed=embed)
 
 async def setup(bot: Ace):

@@ -9,8 +9,12 @@ from discord.types.embed import EmbedType
 from typing_extensions import Self
 
 from .colours import Colour
-from .dtclasses import MessageContent
+from .dtclasses import MessageContent, Record
 
+def get_meme_content() -> ...:
+    meme_links = {
+        
+    }
 
 def get_id(id_or_link: str | int, /) -> int | None:
     if len(id_or_link) in (19, 20,) and id_or_link.isdigit():
@@ -22,6 +26,16 @@ def get_id(id_or_link: str | int, /) -> int | None:
         return None
 
     return int(message_id)
+
+def get_current_tracking_ftstring(records: list[Record] | Record, ft_string=False):
+    if ft_string is True:
+        if isinstance(records, list):
+            return "\n- ".join([f"<https://discord.com/channels/{message.guild_id}/{message.channel_id}/{message.message_id}> ({message.message_id})" for message in records])
+        return f"<https://discord.com/channels/{records.guild_id}/{records.channel_id}/{records.message_id}> ({records.message_id})"
+    
+    if isinstance(records, list):
+            return "\n- ".join([f"<https://discord.com/channels/{message.guild_id}/{message.channel_id}/{message.message_id}>" for message in records])
+    return f"<https://discord.com/channels/{records.guild_id}/{records.channel_id}/{records.message_id}>"
 
 async def get_message_assets(message: discord.Message) -> MessageContent:
     ret = MessageContent()
@@ -40,19 +54,6 @@ async def get_message_assets(message: discord.Message) -> MessageContent:
         ret.embed_content = f"**Title**: {ret.embed_title}\n**Description**: {ret.embed_description}"
 
     return ret
-
-def create_message_asset_embed(message: discord.Message):
-    embed = Embed()
-    if message.content:
-        embed.description = f"**Message Content**: {message.content}" 
-    embed.add_field("Attachment", "True" if message.attachments else "False") 
-    embed.add_field("Embed content", message.embeds[0].description) if message.embeds else ...
-    embed.add_field("Server", message.guild.name)
-    embed.add_field("Channel", message.channel)
-    embed.add_field("Message author", message.author)
-    embed.add_field("Message", f"[Click Here]({message.jump_url})")
-    embed.set_image(message.attachments[0].url) if message.attachments else ...
-    return embed
 
 def generate_timestamp(dt: datetime = None, *, style: str = "f", weeks: int = 0, days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0, milliseconds: int = 0) -> str:
     if dt is None:
