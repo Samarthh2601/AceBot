@@ -37,9 +37,9 @@ class BotSetup:
 
     async def initialize_db(self) -> DatabaseManager:
         db = DatabaseManager()
-        await db.setup()
+        await db.setup()        
         return db
-
+    
     def load_info(self) -> None:
         app_commands_groups = self.bot.tree.get_commands()
         self.logger.info("%s is connected to Shard ID %s", self.bot.user, self.bot.shard_id)

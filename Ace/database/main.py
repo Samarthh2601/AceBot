@@ -72,20 +72,16 @@ class Experience(Base):
         if not xp and not level:
             return False
         
-        check = await self.read(user_id, guild_id)
-        if check is None:
-            return False
-
         cursor = await self.conn.cursor()
 
         if xp and not level:
             await cursor.execute("UPDATE exps SET xp = ? WHERE user_id = ? AND guild_id = ?", (xp, user_id, guild_id,))
             
         if level and not xp:
-            await cursor.execute("UPDATE exps SET level = ? WHERE user_id = ? AND guild_id = ?", (level, user_id, guild_id))
+            await cursor.execute("UPDATE exps SET level = ? WHERE user_id = ? AND guild_id = ?", (level, user_id, guild_id,))
             
         if xp and level:
-            await cursor.execute("UPDATE exps SET xp = ? , level = ? WHERE user_id = ? AND guild_id = ?",(xp,level,user_id, guild_id))
+            await cursor.execute("UPDATE exps SET xp = ? , level = ? WHERE user_id = ? AND guild_id = ?",(xp,level,user_id, guild_id,))
         
         await self.conn.commit()
         await cursor.close()

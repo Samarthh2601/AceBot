@@ -9,7 +9,7 @@ class Users(commands.GroupCog, name="user"):
     def __init__(self, bot: Ace) -> None:
         self.bot = bot
     
-    def get_guild_rank(guild_data: list, member: discord.Member) -> None | int:
+    def get_guild_rank(self, guild_data: list, member: discord.Member) -> None | int:
         s = sorted(guild_data, key=lambda element: element[2])
         form = list(reversed([record[0] for record in s]))
         return None if form is None else (form.index(member.id) + 1)
@@ -42,7 +42,7 @@ class Users(commands.GroupCog, name="user"):
         member = member or inter.user
         user_record = await self.bot.db.ranks.create(inter.user.id, inter.guild.id)
         guild_records = await self.bot.db.ranks._raw_guild_records(inter.guild.id)
-        guild_rank = await self.get_guild_rank(guild_records, inter.user)
+        guild_rank = self.get_guild_rank(guild_records, inter.user)
         
         embed = Embed(title=f"{inter.user.name}'s experience!").set_thumbnail(inter.user.display_avatar.url).add_field("Experience", user_record.experience).add_field("Level", user_record.level).add_field("Rank", guild_rank)
         await inter.edit_original_response(embed=embed)

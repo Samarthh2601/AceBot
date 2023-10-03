@@ -36,14 +36,20 @@ class Events(commands.Cog):
     
     @commands.Cog.listener("on_message")
     async def on_message(self, message: discord.Message) -> discord.Message | None:
-        user = await self.bot.db.ranks.create(message.author.id, message.guild.id)
-        if user.experience <= 5:
+        if message.author.bot is True:
             return None
-        if user.experience % 200 == 0:
-            await self.bot.db.ranks.update(message.author.id, message.guild.id, xp=user.experience+5, level=user.level+1)
-            return await message.author.send(f"You have levelled up to **{user.level+1}** in **{message.guild.name}**")
+        user = await self.bot.db.ranks.create(message.author.id, message.guild.id)
 
+        if (user.experience+5) % 200 == 0:
+            await self.bot.db.ranks.update(message.author.id, message.guild.id, xp=user.experience+5, level=user.level+1)
+            try:
+                return await message.author.send(f"You have levelled up to **{user.level+1}** in **{message.guild.name}**")
+            except:
+                return None
+
+        
         await self.bot.db.ranks.update(message.author.id, message.guild.id, xp=user.experience+5)
+        
 
 async def setup(bot: Ace) -> None:
     await bot.add_cog(Events(bot))
