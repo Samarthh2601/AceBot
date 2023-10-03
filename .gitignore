@@ -3,3 +3,4 @@ test.py
 Ace/utils/settings.py
 Ace/database/temp.db
 data.json
+names.json
